@@ -17,7 +17,7 @@ const initSocket = (server) => {
 
   // Handle new socket connections
   io.on('connection', (socket) => {
-    handleEvents(socket, io);
+    handleEvents({ socket, io });
   });
 };
 

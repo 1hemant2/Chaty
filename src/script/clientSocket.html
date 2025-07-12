@@ -3,7 +3,43 @@
 <head>
   <title>Socket.IO Client</title>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-</head>
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    input {
+      background-color: #1e1e1e;
+      color: #ffffff;
+      border: 1px solid #444;
+      padding: 8px;
+    }
+    button {
+      background-color: #333;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #555;
+    }
+    #messages {
+      margin-top: 20px;
+      list-style-type: none;
+      padding: 0;
+    }
+    #messages li {
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      background-color: #1f1f1f;
+      border-radius: 4px;
+    }
+  </style>
+</head> 
+
 <body>
   <h2>Chat Client</h2>
   <input id="messageInput" placeholder="Type message..." />
@@ -11,15 +47,12 @@
   <ul id="messages"></ul>
 
   <script>
-    // Connect to the server (make sure this matches your backend URL/port)
-
     const socket = io('http://127.0.0.1:3000');
     const userId = '123456789abc';
-    // When connected
+
     socket.on('connect', () => {
       console.log('✅ Connected with ID:', socket.id); 
-        // Emit 'join' event with user ID
-        socket.emit('user_join', { userId: userId });
+      socket.emit('user_join', { userId: userId });
     });
 
     socket.on('user_join', (data) => {
@@ -32,7 +65,7 @@
     socket.on('error', (error) => {
       console.error('❌ Connection error:', error);
     });
-    // Listen for 'chat-message' from server
+
     socket.on('chat_message', (data) => {
       console.log('📨 Message received:', data);
       const li = document.createElement('li');
@@ -40,7 +73,6 @@
       document.getElementById('messages').appendChild(li);
     });
 
-    // Emit 'chat-message' to server
     function sendMessage() {
       const input = document.getElementById('messageInput');
       const msg = input.value;

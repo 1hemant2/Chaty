@@ -1,10 +1,10 @@
-const { userStatus } = require('../socket/handleEvents');
 const { subClient } = require('./setupRedis');
 const { getIO } = require('../socket/index');
 const logger = require('../config/logger');
+const { handleUserStatus, handleReceivedMessage } = require('../socket/eventHelper');
 
 const io = getIO();
-subClient.subscribe('user_status', 'user_message', (err, count) => {
+subClient.subscribe('user_status', 'send_message', (err, count) => {
   if (err) {
     logger.error('❌ Error subscribing to user_status channel:', err);
   } else {
@@ -12,14 +12,18 @@ subClient.subscribe('user_status', 'user_message', (err, count) => {
   }
 });
 
-subClient.on('message', (channel, message) => {
+subClient.on('message', async (channel, receiveData) => {
   switch (channel) {
-    case 'user_status':
-      try {
-        const data = JSON.parse(message);
-        userStatus(io, data);
-      } catch (error) {
-        logger.error(`❌ Error parsing message from user_status channel:`, error);
+    case 'user_status': {
+      const statusData = JSON.parse(receiveData);
+      handleUserStatus(io, statusData);
+      break;
+    }
+
+    case 'send_message':
+      {
+        const messageData = JSON.parse(receiveData);
+        handleReceivedMessage(io, messageData);
       }
       break;
     default:

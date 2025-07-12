@@ -9,4 +9,23 @@ const getParticipants = async (userId) => {
   return participants || [];
 };
 
-module.exports = { getParticipants };
+const isThreadExists = async (otherUserId, currentUserId) => {
+  return Thread.exists({
+    participants: { $all: [otherUserId, currentUserId] },
+  });
+};
+
+const createThread = async (currentUserId, otherUserId) => {
+  // Sort user IDs to ensure uniqueness regardless of order
+  const sortedIds = [currentUserId, otherUserId].sort();
+  const threadId = `thread:${sortedIds[0]}_${sortedIds[1]}`;
+
+  const newThread = new Thread({
+    participants: sortedIds,
+    threadId,
+  });
+  await newThread.save();
+  return newThread;
+};
+
+module.exports = { getParticipants, isThreadExists, createThread };

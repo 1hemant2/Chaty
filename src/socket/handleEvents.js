@@ -1,20 +1,20 @@
 const logger = require('../config/logger');
-const { handleUserJoin } = require('./eventHelper');
+const { handleUserJoin, handleSendMessage } = require('./eventHelper');
 
-const handleEvents = (socket, io) => {
+const handleEvents = ({ socket }) => {
   // Handle disconnection
   socket.on('disconnect', () => {
     logger.info(`Client disconnected: ${socket.id}`);
   });
 
-  // Handle custom events here
+  // This event is triggered when a user joins the application.
   socket.on('user_join', async (data) => {
     await handleUserJoin(socket, data);
   });
 
-  socket.on('chat_message', (data) => {
-    // Broadcast the chat message to all connected clients
-    io.emit('chat_message', data);
+  // This event is triggered when a user sends a message.
+  socket.on('send_message', async (data) => {
+    await handleSendMessage(data);
   });
 };
 

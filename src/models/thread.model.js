@@ -15,14 +15,6 @@ const threadSchema = mongoose.Schema(
         required: true,
       },
     ],
-    message: {
-      type: String,
-      required: true,
-    },
-    lastMessage: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Message',
-    },
     isDeleted: {
       type: Boolean,
       default: false,
