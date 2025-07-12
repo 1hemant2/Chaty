@@ -1,10 +1,9 @@
-const logger = require('../config/logger');
-const { handleUserJoin, handleSendMessage } = require('./eventHelper');
+const { handleUserJoin, handleSendMessage, handleUserLeave } = require('./eventHelper');
 
 const handleEvents = ({ socket }) => {
   // Handle disconnection
-  socket.on('disconnect', () => {
-    logger.info(`Client disconnected: ${socket.id}`);
+  socket.on('disconnect', async () => {
+    await handleUserLeave(socket);
   });
 
   // This event is triggered when a user joins the application.

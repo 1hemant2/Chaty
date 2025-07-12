@@ -39,11 +39,11 @@ const checkOtherUserInsideThread = async (otherUserId, threadId) => {
  * This function publishes a message to the 'user_status' channel
  * to notify all participants about the user's online status.
  */
-const notifyUserStatus = (userId, participants) => {
+const notifyUserStatus = (userId, participants, status) => {
   participants.forEach(async (participant) => {
     publisher('user_status', {
       userId,
-      status: 'online',
+      status,
       otherUserId: participant,
     });
   });
@@ -58,7 +58,7 @@ const notifyUserStatus = (userId, participants) => {
  * @throws {Error} - If there is an error while fetching the socket IDs from Redis
  * or if the userId is not provided.
  */
-function getUserSocketIds(userId) {
+const getUserSocketIds = (userId) => {
   try {
     if (!userId) {
       throw new Error('User ID is not provided');
@@ -68,11 +68,36 @@ function getUserSocketIds(userId) {
     logger.error('❌ Error fetching user socket IDs:', error);
     return [];
   }
-}
+};
+
+/**
+ *
+ * @param {*} userId
+ * @param {*} socketId
+ * This function removes the user from the Redis cache.
+ * It selects the user database and removes the socket ID from the user's set.
+ * If after removing socket id, the user has no more socket IDs, set the user status as offline and remove the user from the cache.
+ */
+const removeUserFromCache = async (userId, socketId) => {
+  try {
+    await redisClient.select(config.redis.DB_NUMBER.user);
+    await redisClient.srem(`user:${userId}`, socketId);
+    const remainingSocketIds = await redisClient.smembers(`user:${userId}`);
+    if (remainingSocketIds.length === 0) {
+      await redisClient.del(`user:${userId}`);
+    }
+    logger.info(`User ${userId} with socket ID ${socketId} has been removed from cache.`);
+    return remainingSocketIds;
+  } catch (error) {
+    logger.error('❌ Error removing user from cache:', error);
+    throw error; // Re-throw the error to handle it in the calling function
+  }
+};
 
 module.exports = {
   cacheUser,
   notifyUserStatus,
   checkOtherUserInsideThread,
   getUserSocketIds,
+  removeUserFromCache,
 };

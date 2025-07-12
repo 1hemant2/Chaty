@@ -72,6 +72,10 @@
       li.innerText = data;
       document.getElementById('messages').appendChild(li);
     });
+     // Handle disconnection of socket in client side
+    socket.on('disconnect', () => {
+     
+    });
 
     function sendMessage() {
       const input = document.getElementById('messageInput');

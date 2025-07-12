@@ -19,6 +19,9 @@ const initSocket = (server) => {
   io.on('connection', (socket) => {
     handleEvents({ socket, io });
   });
+  io.on('disconnect', (socket) => {
+    handleEvents({ socket, io });
+  });
 };
 
 const getIO = () => {

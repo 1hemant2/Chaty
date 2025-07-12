@@ -1,7 +1,13 @@
 const logger = require('../config/logger');
 const Message = require('../models/message.model');
 const { publisher } = require('../redis/pubClient');
-const { cacheUser, notifyUserStatus, checkOtherUserInsideThread, getUserSocketIds } = require('../redis/redisClient');
+const {
+  cacheUser,
+  notifyUserStatus,
+  checkOtherUserInsideThread,
+  getUserSocketIds,
+  removeUserFromCache,
+} = require('../redis/redisClient');
 const { getParticipants, isThreadExists, createThread } = require('../services/thread.server');
 
 /**
@@ -16,11 +22,35 @@ const handleUserJoin = async (socket, data) => {
   try {
     const userId = data?.userId;
     const socketId = socket.id;
+    // eslint-disable-next-line no-param-reassign
+    socket.data.userId = userId; // Store userId in socket for later use
     await cacheUser(userId, socketId);
     const participants = await getParticipants(userId);
-    notifyUserStatus(userId, participants);
+    notifyUserStatus(userId, participants, 'online');
+    // update user status in mongoDB
+    logger.info(`User ${userId} has joined the application with socket ID: ${socketId}`);
   } catch (error) {
     logger.error('Error handling user join:', error);
+  }
+};
+
+/**
+ * This function handles the logic for a user leaving the application.
+
+ */
+const handleUserLeave = async (io) => {
+  try {
+    const socketId = io?.id;
+    const userId = io?.data?.userId;
+    logger.info(`User ${userId}, ${socketId} has left the application.`);
+    const remainingSocketIds = await removeUserFromCache(userId, socketId);
+    const participants = await getParticipants(userId);
+    if (remainingSocketIds.length === 0) {
+      notifyUserStatus(userId, participants, 'offline');
+      // udate user status in mongoDB
+    }
+  } catch (error) {
+    logger.error('Error handling user leave:', error);
   }
 };
 
@@ -129,4 +159,4 @@ const handleUserStatus = (io, statusData) => {
   });
 };
 
-module.exports = { handleUserJoin, handleSendMessage, handleReceivedMessage, handleUserStatus };
+module.exports = { handleUserJoin, handleSendMessage, handleReceivedMessage, handleUserStatus, handleUserLeave };
