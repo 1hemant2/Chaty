@@ -10,7 +10,7 @@ const getParticipants = async (userId) => {
 };
 
 const isThreadExists = async (otherUserId, currentUserId) => {
-  return Thread.exists({
+  return Thread.findOne({
     participants: { $all: [otherUserId, currentUserId] },
   });
 };
@@ -19,7 +19,6 @@ const createThread = async (currentUserId, otherUserId) => {
   // Sort user IDs to ensure uniqueness regardless of order
   const sortedIds = [currentUserId, otherUserId].sort();
   const threadId = `thread:${sortedIds[0]}_${sortedIds[1]}`;
-
   const newThread = new Thread({
     participants: sortedIds,
     threadId,

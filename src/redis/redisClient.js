@@ -22,7 +22,7 @@ const cacheUser = async (userId, socketId) => {
  * in the list of participants.
  * If the other user is found in the thread participants, it returns true; otherwise, it returns false.
  */
-const checkOtherUserInsideThread = async (otherUserId, threadId) => {
+const checkUserPresentInThread = async (otherUserId, threadId) => {
   try {
     const threadParticipants = await redisClient.smembers(`thread:${threadId}`);
     return threadParticipants.includes(otherUserId);
@@ -78,8 +78,9 @@ const getUserSocketIds = (userId) => {
  * It selects the user database and removes the socket ID from the user's set.
  * If after removing socket id, the user has no more socket IDs, set the user status as offline and remove the user from the cache.
  */
-const removeUserFromCache = async (userId, socketId) => {
+const removeUserFromCache = async (userId, socket) => {
   try {
+    const socketId = socket.id;
     await redisClient.select(config.redis.DB_NUMBER.user);
     await redisClient.srem(`user:${userId}`, socketId);
     const remainingSocketIds = await redisClient.smembers(`user:${userId}`);
@@ -94,10 +95,47 @@ const removeUserFromCache = async (userId, socketId) => {
   }
 };
 
+/**
+ *
+ * @param {*} threadId
+ * @param {*} userId
+ * When user join the thread save it into redis.
+ */
+const cacheThread = async (threadId, userId) => {
+  try {
+    await redisClient.select(config.redis.DB_NUMBER.user);
+    await redisClient.sadd(`thread:${threadId}`, userId);
+  } catch (error) {
+    logger.error('❌ Error setting users in Redis:', error);
+  }
+};
+
+/**
+ * @param {*} threadId
+ * @param {*} userId
+ * when user goes offline remove user from thread
+ * If thread become empty deleted from redis.
+ */
+const removeUserFromThread = async (userId, threadId) => {
+  try {
+    await redisClient.select(config.redis.DB_NUMBER.user);
+    await redisClient.srem(`thread:${threadId}`, userId);
+    const threadUsers = await redisClient.smembers(`thread:${threadId}`);
+    // if no user present in thread remove from redis.
+    if (threadUsers.length === 0) {
+      await redisClient.del(`user:${userId}`);
+    }
+  } catch (error) {
+    logger.error('❌ Error setting users in Redis:', error);
+  }
+};
+
 module.exports = {
   cacheUser,
   notifyUserStatus,
-  checkOtherUserInsideThread,
+  checkUserPresentInThread,
   getUserSocketIds,
   removeUserFromCache,
+  cacheThread,
+  removeUserFromThread,
 };
