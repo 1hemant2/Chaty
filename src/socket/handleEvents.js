@@ -1,3 +1,4 @@
+const logger = require('../config/logger');
 const { handleUserJoin, handleSendMessage, handleUserLeave, joinThread } = require('./eventHelper');
 
 const handleEvents = ({ socket }) => {
@@ -19,6 +20,11 @@ const handleEvents = ({ socket }) => {
   // This event join a thread
   socket.on('join_thread', async (data) => {
     await joinThread(socket, data);
+  });
+
+  // remove from thread
+  socket.on('remove_thread', async (data) => {
+    logger.info('remove thread', data);
   });
 };
 

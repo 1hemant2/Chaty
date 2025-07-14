@@ -1,6 +1,5 @@
 const logger = require('../config/logger');
 const Message = require('../models/message.model');
-const { publisher } = require('../redis/pubClient');
 const {
   cacheUser,
   notifyUserStatus,
@@ -9,6 +8,8 @@ const {
   checkUserPresentInThread,
   cacheThread,
   removeUserFromThread,
+  removeuserProfile,
+  isUserOnline,
 } = require('../redis/redisClient');
 const { getParticipants, isThreadExists, createThread } = require('../services/thread.server');
 
@@ -51,6 +52,7 @@ const handleUserLeave = async (socket) => {
     if (remainingSocketIds.length === 0) {
       notifyUserStatus(userId, participants, 'offline');
       removeUserFromThread(userId, threadId);
+      removeuserProfile(userId);
       // udate user status in mongoDB
     }
   } catch (error) {
@@ -82,12 +84,6 @@ const joinThread = async (socket, data) => {
   socket.join(`thread:${threadId}`);
   // save the participated user inside the thread
   await cacheThread(threadId, userId);
-  // user can join multiple threads at same time, so we store threadId in socket data and it's type will be set so that it will be available in o(1) time complexity.
-  if (!socket.data.threadIds) {
-    // eslint-disable-next-line no-param-reassign
-    socket.data.threadIds = new Set();
-  }
-  socket.data.threadIds.add(threadId);
   logger.info(`Socket ${socket.id} joined thread ${threadId}`);
 };
 
@@ -120,12 +116,17 @@ const handleSendMessage = async (socket, data) => {
       status: 'sent',
     });
     await messageData.save();
-    publisher('send_message', messageData);
+    // publisher('send_message', messageData);
     // Join the thread if not already joined, user can join muliple threads at same time.
-    if (socket.data.threadIds && !socket.data.threadIds.has(userThread.threadId)) {
-      joinThread(socket, userThread.id);
+    if (!checkUserPresentInThread(currentUserId)) {
+      await joinThread(socket, userThread.threadId);
     }
-    // if other
+    // here both user present in thread send the message directly via adapter.
+    if (checkUserPresentInThread(otherUserId)) {
+      socket.to(`thread:${userThread.threadId}`).emit('chat_message', messageData);
+    } else if (isUserOnline(otherUserId)) {
+      // send the notification, when user will opn the thread message will start emiting.
+    }
   } catch (error) {
     logger.error('Error sending message:', error);
   }

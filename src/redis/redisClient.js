@@ -6,7 +6,8 @@ const { redisClient } = require('./setupRedis');
 const cacheUser = async (userId, socketId) => {
   try {
     await redisClient.select(config.redis.DB_NUMBER.user);
-    await redisClient.sadd(`user:${userId}`, socketId);
+    await redisClient.sadd(`user:${userId}:socketIds`, socketId);
+    await redisClient.hset(`user:${userId}:online`, 'true');
   } catch (error) {
     logger.error('❌ Error setting users in Redis:', error);
   }
@@ -130,6 +131,18 @@ const removeUserFromThread = async (userId, threadId) => {
   }
 };
 
+const removeuserProfile = async (userId) => {
+  try {
+    await redisClient.del(`user:${userId}:profile`);
+  } catch (error) {
+    logger.error('❌ Error removing user profile from Redis:', error);
+  }
+};
+
+const isUserOnline = async (userId) => {
+  return (await redisClient.get(`user:${userId}:online`)) === 'true';
+};
+
 module.exports = {
   cacheUser,
   notifyUserStatus,
@@ -138,4 +151,6 @@ module.exports = {
   removeUserFromCache,
   cacheThread,
   removeUserFromThread,
+  removeuserProfile,
+  isUserOnline,
 };
