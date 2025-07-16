@@ -7,7 +7,7 @@ const cacheUser = async (userId, socketId) => {
   try {
     await redisClient.select(config.redis.DB_NUMBER.user);
     await redisClient.sadd(`user:${userId}:socketIds`, socketId);
-    await redisClient.hset(`user:${userId}:online`, 'true');
+    await redisClient.set(`user:${userId}:online`, 'true');
   } catch (error) {
     logger.error('❌ Error setting users in Redis:', error);
   }
@@ -41,13 +41,17 @@ const checkUserPresentInThread = async (otherUserId, threadId) => {
  * to notify all participants about the user's online status.
  */
 const notifyUserStatus = (userId, participants, status) => {
-  participants.forEach(async (participant) => {
-    publisher('user_status', {
-      userId,
-      status,
-      otherUserId: participant,
+  try {
+    participants?.forEach(async (participant) => {
+      publisher('user_status', {
+        userId,
+        status,
+        otherUserId: participant,
+      });
     });
-  });
+  } catch (error) {
+    logger.error('error while pubishing user status through the channel', error);
+  }
 };
 
 /**
@@ -105,9 +109,9 @@ const removeUserFromCache = async (userId, socket) => {
 const cacheThread = async (threadId, userId) => {
   try {
     await redisClient.select(config.redis.DB_NUMBER.user);
-    await redisClient.sadd(`thread:${threadId}`, userId);
+    await redisClient.sadd(`${threadId}`, userId);
   } catch (error) {
-    logger.error('❌ Error setting users in Redis:', error);
+    logger.error('❌ Error setting thread in Redis:', error);
   }
 };
 
@@ -127,7 +131,7 @@ const removeUserFromThread = async (userId, threadId) => {
       await redisClient.del(`user:${userId}`);
     }
   } catch (error) {
-    logger.error('❌ Error setting users in Redis:', error);
+    logger.error('❌ Error remving users from Redis:', error);
   }
 };
 

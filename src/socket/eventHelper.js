@@ -11,7 +11,7 @@ const {
   removeuserProfile,
   isUserOnline,
 } = require('../redis/redisClient');
-const { getParticipants, isThreadExists, createThread } = require('../services/thread.server');
+const { getParticipants, isThreadExists, createThread, isUserExistInThread } = require('../services/thread.server');
 
 /**
  * @param {*} socket
@@ -75,7 +75,7 @@ const joinThread = async (socket, data) => {
     return;
   }
   // validate threadId and userId before joining
-  const isUserInThread = checkUserPresentInThread(userId, threadId);
+  const isUserInThread = await isUserExistInThread(threadId, userId);
   if (!isUserInThread) {
     logger.error(`User ${userId} is not in thread ${threadId}`);
     return;
@@ -123,7 +123,7 @@ const handleSendMessage = async (socket, data) => {
     }
     // here both user present in thread send the message directly via adapter.
     if (checkUserPresentInThread(otherUserId)) {
-      socket.to(`thread:${userThread.threadId}`).emit('chat_message', messageData);
+      socket.to(`thread:${userThread.threadId}`).emit('chat_message', messageData?._doc);
     } else if (isUserOnline(otherUserId)) {
       // send the notification, when user will opn the thread message will start emiting.
     }

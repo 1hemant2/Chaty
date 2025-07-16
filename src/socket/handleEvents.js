@@ -13,7 +13,7 @@ const handleEvents = ({ socket }) => {
   });
 
   // This event is triggered when a user sends a message.
-  socket.on('send_message', async (data) => {
+  socket.on('chat_message', async (data) => {
     await handleSendMessage(socket, data);
   });
 
