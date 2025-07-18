@@ -93,11 +93,24 @@
         console.info(data);
         li.innerText = `${data.senderId} ➡️ : ${data.message}`;
         document.getElementById('messages').appendChild(li);
+        socket.emit('message_ack', {
+          ...data,
+          messageStatus : 'seen'
+        })
       });
 
       socket.on('disconnect', () => {
         console.warn('🚪 Disconnected from server');
         connected = false;
+      });
+
+     socket.on('message_status', (data) => {
+      console.info(data);
+      const { messageId, messageStatus } = data;
+  
+     const li = document.createElement('li');
+      li.innerText = `📬 Message ${messageId} marked as ${messageStatus}`;
+       document.getElementById('messages').appendChild(li);
       });
 
       socket.on('error', (error) => {

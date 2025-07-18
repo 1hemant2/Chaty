@@ -11,6 +11,7 @@ const {
   removeuserProfile,
   isUserOnline,
 } = require('../redis/redisClient');
+const { updateMessageStatus } = require('../services/message.service');
 const { getParticipants, isThreadExists, createThread, isUserExistInThread } = require('../services/thread.server');
 
 /**
@@ -30,6 +31,8 @@ const handleUserJoin = async (socket, data) => {
     await cacheUser(userId, socketId);
     const participants = await getParticipants(userId);
     notifyUserStatus(userId, participants, 'online');
+    // make user joining it's own room so that i don't need to emit the any events to all socket id's with user connected just send to room.
+    socket.join(`user:${userId}`);
     // update user status in mongoDB
     logger.info(`User ${userId} has joined the application with socket ID: ${socketId}`);
   } catch (error) {
@@ -200,4 +203,34 @@ const handleUserStatus = (io, statusData) => {
   });
 };
 
-module.exports = { handleUserJoin, handleSendMessage, handleReceivedMessage, handleUserStatus, handleUserLeave, joinThread };
+/**
+ * @param : data.
+ * @description : When user will get the senderId and messageId inside data so that we can emit to sender that user have seen the message if sender online, update messsage status to deliver.
+ */
+
+const handleMessageAckknowledge = async (socket, data) => {
+  try {
+    const { _id, senderId, messageStatus } = data;
+    const isMessageUpdated = updateMessageStatus(data, messageStatus);
+    if (isMessageUpdated) {
+      // notify the sender if online, emit event to sender all socket ids.
+      socket.to(`user:${senderId}`).emit('message_status', {
+        messageId: _id,
+        messageStatus,
+        seenAt: new Date(),
+      });
+    }
+  } catch (error) {
+    logger.error('error occured while notifying message acknowledgement status', error);
+  }
+};
+
+module.exports = {
+  handleUserJoin,
+  handleSendMessage,
+  handleReceivedMessage,
+  handleUserStatus,
+  handleUserLeave,
+  joinThread,
+  handleMessageAckknowledge,
+};
