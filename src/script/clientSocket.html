@@ -114,10 +114,15 @@
       });
       
       socket.on('notify_message_outside_thread', (data) => {
-           const { threadId, fromUser, messagePreview, messageType, unreadCount, timestamp } = data;
+         const { threadId, fromUser, messagePreview, messageType, unreadCount, timestamp, messageId } = data;
          const li = document.createElement('li');
          li.innerText = `🔔 New message in thread ${threadId} from ${fromUser.name} (${fromUser.id}) → "${messagePreview}" [${messageType}] at ${new Date(timestamp).toLocaleTimeString()}. ${unreadCount} unread.`;
-         document.getElementById('messages').appendChild(li);
+         document.getElementById('messages').appendChild(li); 
+          socket.emit('message_ack', {
+          senderId : fromUser?.senderId,
+          messageStatus : 'delivered', 
+          messageId : messageId
+        })
       })
 
       socket.on('error', (error) => {

@@ -144,6 +144,7 @@ const handleSendMessage = async (socket, data) => {
         type: type || 'text',
         unreadCount: unreadMessageCount,
         date: new Date(),
+        messageId: messageData?._doc?._id,
       });
     }
   } catch (error) {
@@ -158,12 +159,12 @@ const handleSendMessage = async (socket, data) => {
 
 const handleMessageAckknowledge = async (socket, data) => {
   try {
-    const { _id, senderId, messageStatus } = data;
-    const isMessageUpdated = updateMessageStatus(data, messageStatus);
+    const { senderId, messageStatus, messageId } = data;
+    const isMessageUpdated = await updateMessageStatus(messageId, messageStatus);
     if (isMessageUpdated) {
       // notify the sender if online, emit event to sender all socket ids.
       socket.to(`user:${senderId}`).emit('message_status', {
-        messageId: _id,
+        messageId,
         messageStatus,
         seenAt: new Date(),
       });
