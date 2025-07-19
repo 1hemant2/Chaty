@@ -9,6 +9,15 @@ const updateMessageStatus = async (messageId, status) => {
   }
 };
 
+const getUnreadMessageCount = async (threadId) => {
+  try {
+    return await Message.countDocuments({ threadId, status: { $ne: 'read' } });
+  } catch (error) {
+    logger.error('error while getting unread message', error);
+  }
+};
+
 module.exports = {
   updateMessageStatus,
+  getUnreadMessageCount,
 };

@@ -3,7 +3,6 @@ const Message = require('../models/message.model');
 const {
   cacheUser,
   notifyUserStatus,
-  getUserSocketIds,
   removeUserFromCache,
   checkUserPresentInThread,
   cacheThread,
@@ -11,8 +10,9 @@ const {
   removeuserProfile,
   isUserOnline,
 } = require('../redis/redisClient');
-const { updateMessageStatus } = require('../services/message.service');
+const { updateMessageStatus, getUnreadMessageCount } = require('../services/message.service');
 const { getParticipants, isThreadExists, createThread, isUserExistInThread } = require('../services/thread.server');
+const { getUserById } = require('../services/user.service');
 
 /**
  * @param {*} socket
@@ -103,7 +103,7 @@ const joinThread = async (socket, data) => {
  */
 const handleSendMessage = async (socket, data) => {
   try {
-    const { message, currentUserId, otherUserId } = data;
+    const { message, currentUserId, otherUserId, type } = data;
     if (!otherUserId || !message || !currentUserId) {
       throw new Error('Invalid data provided');
     }
@@ -115,92 +115,40 @@ const handleSendMessage = async (socket, data) => {
       threadId: userThread.threadId,
       senderId: currentUserId,
       message,
-      type: 'text',
+      type: type || 'text',
       status: 'sent',
     });
     await messageData.save();
     // publisher('send_message', messageData);
     // Join the thread if not already joined, user can join muliple threads at same time.
-    if (!checkUserPresentInThread(currentUserId)) {
+    const isCurrentUserPresentInTread = await checkUserPresentInThread(currentUserId, userThread.threadId);
+    if (!isCurrentUserPresentInTread) {
       await joinThread(socket, userThread.threadId);
     }
-    // here both user present in thread send the message directly via adapter.
-    if (checkUserPresentInThread(otherUserId)) {
+    // here both user present in thread so send message
+    const isOtherUserPresentInTread = await checkUserPresentInThread(otherUserId, userThread.threadId);
+    const isOtherUserOnline = await isUserOnline(otherUserId);
+    if (isOtherUserPresentInTread) {
       socket.to(`thread:${userThread.threadId}`).emit('chat_message', messageData?._doc);
-    } else if (isUserOnline(otherUserId)) {
+    } else if (isOtherUserOnline) {
       // send the notification, when user will opn the thread message will start emiting.
+      const unreadMessageCount = await getUnreadMessageCount(userThread.threadId);
+      const userName = await getUserById(currentUserId);
+      await socket.to(`user:${otherUserId}`).emit('notify_message_outside_thread', {
+        threadId: userThread.threadId,
+        fromUser: {
+          senderId: currentUserId,
+          name: userName?._doc?.name,
+        },
+        messagePreview: message,
+        type: type || 'text',
+        unreadCount: unreadMessageCount,
+        date: new Date(),
+      });
     }
   } catch (error) {
     logger.error('Error sending message:', error);
   }
-};
-
-/**
- *
- * @param {*} io
- * @param {*} data
- * This function handles the logic for receiving a message.
- * - It retrieves the message, current user ID, and other user ID from the data object
- * - It checks if the thread ID, other user ID, message, and current user ID
- *   are valid.
- * - It retrieves the socket IDs of the other user from Redis.
- * - It checks if the other user is inside the thread.
- * - If the other user is already in the thread, it updates the message status to '
- */
-const handleReceivedMessage = async (io, data) => {
-  try {
-    const { message, currentUserId, otherUserId } = data;
-    const { threadId } = message; // Assuming threadId is part of the messageData
-    if (!threadId || !otherUserId || !message || !currentUserId) {
-      throw new Error('Invalid data provided');
-    }
-    const otherUserSocketId = await getUserSocketIds(otherUserId);
-    const isOtherUserInsideThread = await checkUserPresentInThread(otherUserId, threadId);
-    // case1: if the other user is already in the thread
-    if (otherUserSocketId.length > 0 && isOtherUserInsideThread) {
-      message.status = 'delivered'; // Update status to delivered
-      io.to(`thread:${threadId}`).emit('receive_message', {
-        threadId,
-        message,
-        senderId: currentUserId,
-        recipientId: otherUserId,
-      });
-    } else if (otherUserSocketId.length > 0) {
-      // case2 : if the other user is online but not in the thread
-      message.status = 'delivered'; // Update status to delivered
-      otherUserSocketId.forEach((socketId) => {
-        io.to(socketId).emit('receive_message', {
-          threadId,
-          message,
-          senderId: currentUserId,
-          recipientId: otherUserId,
-        });
-      });
-    }
-  } catch (error) {
-    logger.error('❌ Error handling received message:', error);
-  }
-};
-
-/**
- *
- * @param {*} io
- * @param {*} statusData
- * This function handles the user status updates.
- * It retrieves the user ID, otherUsers and status from the statusData object,
- * then gets the socket IDs associated with that user from Redis.
- * Finally, it emits the 'user_status' event to all sockets associated with that user,
- * sending the user ID and status as data.
- */
-const handleUserStatus = (io, statusData) => {
-  const { userId, otherUserIds, status } = statusData;
-  let otherUserSocketIds = [];
-  otherUserIds.forEach((otherUserId) => {
-    otherUserSocketIds = otherUserSocketIds.concat(getUserSocketIds(otherUserId));
-  });
-  otherUserSocketIds.forEach((socketId) => {
-    io.to(socketId).emit('user_status', { userId, status });
-  });
 };
 
 /**
@@ -228,8 +176,6 @@ const handleMessageAckknowledge = async (socket, data) => {
 module.exports = {
   handleUserJoin,
   handleSendMessage,
-  handleReceivedMessage,
-  handleUserStatus,
   handleUserLeave,
   joinThread,
   handleMessageAckknowledge,

@@ -95,7 +95,7 @@
         document.getElementById('messages').appendChild(li);
         socket.emit('message_ack', {
           ...data,
-          messageStatus : 'seen'
+          messageStatus : 'read'
         })
       });
 
@@ -112,6 +112,13 @@
       li.innerText = `📬 Message ${messageId} marked as ${messageStatus}`;
        document.getElementById('messages').appendChild(li);
       });
+      
+      socket.on('notify_message_outside_thread', (data) => {
+           const { threadId, fromUser, messagePreview, messageType, unreadCount, timestamp } = data;
+         const li = document.createElement('li');
+         li.innerText = `🔔 New message in thread ${threadId} from ${fromUser.name} (${fromUser.id}) → "${messagePreview}" [${messageType}] at ${new Date(timestamp).toLocaleTimeString()}. ${unreadCount} unread.`;
+         document.getElementById('messages').appendChild(li);
+      })
 
       socket.on('error', (error) => {
         console.error('❌ Connection error:', error);

@@ -23,10 +23,10 @@ const cacheUser = async (userId, socketId) => {
  * in the list of participants.
  * If the other user is found in the thread participants, it returns true; otherwise, it returns false.
  */
-const checkUserPresentInThread = async (otherUserId, threadId) => {
+const checkUserPresentInThread = async (userId, threadId) => {
   try {
-    const threadParticipants = await redisClient.smembers(`thread:${threadId}`);
-    return threadParticipants.includes(otherUserId);
+    const threadParticipants = await redisClient.smembers(threadId);
+    return threadParticipants?.includes(userId);
   } catch (error) {
     logger.error('❌ Error checking other user inside thread:', error);
     return false;
@@ -144,7 +144,11 @@ const removeuserProfile = async (userId) => {
 };
 
 const isUserOnline = async (userId) => {
-  return (await redisClient.get(`user:${userId}:online`)) === 'true';
+  try {
+    return (await redisClient.get(`user:${userId}:online`)) === 'true';
+  } catch (error) {
+    logger.error('error while getting user status', error);
+  }
 };
 
 module.exports = {
