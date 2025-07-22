@@ -10,9 +10,52 @@ const {
   removeuserProfile,
   isUserOnline,
 } = require('../redis/redisClient');
-const { updateMessageStatus, getUnreadMessageCount } = require('../services/message.service');
-const { getParticipants, isThreadExists, createThread, isUserExistInThread } = require('../services/thread.server');
+const { updateMessageStatus, getUnreadMessageCount, getLastMessageAndUnreadCount } = require('../services/message.service');
+const {
+  getParticipants,
+  isThreadExists,
+  createThread,
+  isUserExistInThread,
+  getUserAllThreads,
+} = require('../services/thread.server');
 const { getUserById } = require('../services/user.service');
+
+/**
+ *
+ * @param {*} socket
+ * @param {*} userId
+ * @description :  This function retrieves all threads of the user, get the last unread messagen and total unread message count.  Emits them one by one as notifications to the current user.
+ */
+const emitMessageNotificationOnUserJoin = async (socket, userId) => {
+  try {
+    const userThreads = await getUserAllThreads(userId);
+
+    await Promise.all(
+      userThreads.map(async ({ threadId }) => {
+        const lastMessageAndUnreadCount = await getLastMessageAndUnreadCount(threadId);
+
+        if (lastMessageAndUnreadCount?.unreadCount > 0) {
+          const { unreadCount, msg } = lastMessageAndUnreadCount;
+
+          socket.emit('self_message_notification', {
+            threadId,
+            fromUser: {
+              senderId: msg?.message,
+              name: msg?.user?.name,
+            },
+            messagePreview: msg?.message,
+            type: msg?.type || 'text',
+            unreadCount,
+            date: msg?.createdAt,
+            messageId: msg?._id,
+          });
+        }
+      })
+    );
+  } catch (error) {
+    logger.error('error occurred while emitMessageNotification fn => ', error);
+  }
+};
 
 /**
  * @param {*} socket
@@ -33,7 +76,8 @@ const handleUserJoin = async (socket, data) => {
     notifyUserStatus(userId, participants, 'online');
     // make user joining it's own room so that i don't need to emit the any events to all socket id's with user connected just send to room.
     socket.join(`user:${userId}`);
-    // update user status in mongoDB
+    // emiting last the message and count of unread message as notification to current.
+    await emitMessageNotificationOnUserJoin(socket, userId);
     logger.info(`User ${userId} has joined the application with socket ID: ${socketId}`);
   } catch (error) {
     logger.error('Error handling user join:', error);
@@ -87,6 +131,8 @@ const joinThread = async (socket, data) => {
   socket.join(`thread:${threadId}`);
   // save the participated user inside the thread
   await cacheThread(threadId, userId);
+
+  // emit the message to self
   logger.info(`Socket ${socket.id} joined thread ${threadId}`);
 };
 

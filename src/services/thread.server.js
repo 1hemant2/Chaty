@@ -34,7 +34,7 @@ const createThread = async (currentUserId, otherUserId) => {
 
 const isUserExistInThread = async (threadId, userId) => {
   try {
-    return Thread.exists({
+    return await Thread.exists({
       threadId,
       participants: { $in: [Types.ObjectId(userId)] },
     });
@@ -43,4 +43,18 @@ const isUserExistInThread = async (threadId, userId) => {
   }
 };
 
-module.exports = { getParticipants, isThreadExists, createThread, isUserExistInThread };
+/**
+ *
+ * @param {*} userId
+ * @description: This function will return the user thread based on userId.
+ */
+const getUserAllThreads = async (userId) => {
+  try {
+    return await Thread.find({
+      participants: userId,
+    }).lean();
+  } catch (error) {
+    logger.error('error occured in getUserAllThreads function => ', error);
+  }
+};
+module.exports = { getParticipants, isThreadExists, createThread, isUserExistInThread, getUserAllThreads };

@@ -37,6 +37,8 @@ const handleEvents = ({ socket }) => {
   socket.on('message_ack', async (data) => {
     await handleMessageAckknowledge(socket, data);
   });
+
+  // When user connect for first time
 };
 
 module.exports = { handleEvents };

@@ -124,7 +124,30 @@
           messageId : messageId
         })
       })
+       
+      socket.on('self_message_notification', (data) => {
+        console.log('data self_message_notification => ', data);
+    const {
+      threadId,
+      fromUser,
+      messagePreview,
+      type,
+      unreadCount,
+      date,
+      messageId
+    } = data;
 
+    const li = document.createElement('li');
+    li.innerText = `📨 Your message in thread ${threadId} was: "${messagePreview}" [${type}] at ${new Date(date).toLocaleTimeString()}. ${unreadCount} unread`;
+    document.getElementById('messages').appendChild(li);
+
+    // Optional: Emit message acknowledgment
+    socket.emit('message_ack', {
+      senderId: fromUser?.senderId,
+      messageStatus: 'delivered',
+      messageId
+    });
+   });
       socket.on('error', (error) => {
         console.error('❌ Connection error:', error);
       });
