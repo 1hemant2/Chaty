@@ -23,6 +23,22 @@ const { getUserById } = require('../services/user.service');
 /**
  *
  * @param {*} socket
+ * @param {*} data
+ * This function remove the user from thread.
+ */
+const handleUserLeftThread = async (socket, data) => {
+  try {
+    const { userId, threadId } = data;
+    socket.leave(threadId);
+    removeUserFromThread(userId, threadId);
+  } catch (error) {
+    logger.error('error occured while removing user from thread => ', error);
+  }
+};
+
+/**
+ *
+ * @param {*} socket
  * @param {*} userId
  * @description :  This function retrieves all threads of the user, get the last unread messagen and total unread message count.  Emits them one by one as notifications to the current user.
  */
@@ -98,8 +114,9 @@ const handleUserLeave = async (socket) => {
     const participants = await getParticipants(userId);
     if (remainingSocketIds.length === 0) {
       notifyUserStatus(userId, participants, 'offline');
-      removeUserFromThread(userId, threadId);
       removeuserProfile(userId);
+      handleUserLeftThread(socket, { userId, threadId });
+      socket.leave(`user:${userId}`);
       // udate user status in mongoDB
     }
   } catch (error) {
@@ -226,4 +243,5 @@ module.exports = {
   handleUserLeave,
   joinThread,
   handleMessageAckknowledge,
+  handleUserLeftThread,
 };

@@ -1,10 +1,10 @@
-const logger = require('../config/logger');
 const {
   handleUserJoin,
   handleSendMessage,
   handleUserLeave,
   joinThread,
   handleMessageAckknowledge,
+  handleUserLeftThread,
 } = require('./eventHelper');
 
 const handleEvents = ({ socket }) => {
@@ -29,8 +29,8 @@ const handleEvents = ({ socket }) => {
   });
 
   // remove from thread
-  socket.on('remove_thread', async (data) => {
-    logger.info('remove thread', data);
+  socket.on('user_left_thread', async (data) => {
+    await handleUserLeftThread(socket, data);
   });
 
   // acknowledge the message status.
