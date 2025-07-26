@@ -91,6 +91,7 @@ const removeUserFromCache = async (userId, socket) => {
     const remainingSocketIds = await redisClient.smembers(`user:${userId}`);
     if (remainingSocketIds.length === 0) {
       await redisClient.del(`user:${userId}`);
+      await redisClient.del(`user:${userId}:online`);
     }
     logger.info(`User ${userId} with socket ID ${socketId} has been removed from cache.`);
     return remainingSocketIds;

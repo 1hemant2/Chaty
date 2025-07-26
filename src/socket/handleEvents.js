@@ -5,9 +5,10 @@ const {
   joinThread,
   handleMessageAckknowledge,
   handleUserLeftThread,
+  handleUserStatus,
 } = require('./eventHelper');
 
-const handleEvents = ({ socket }) => {
+const handleEvents = ({ socket, io }) => {
   // Handle disconnection
   socket.on('disconnect', async () => {
     await handleUserLeave(socket);
@@ -38,7 +39,10 @@ const handleEvents = ({ socket }) => {
     await handleMessageAckknowledge(socket, data);
   });
 
-  // When user connect for first time
+  // get the user status
+  socket.on('user_status', async (data) => {
+    await handleUserStatus(socket, io, data);
+  });
 };
 
 module.exports = { handleEvents };

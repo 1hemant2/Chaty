@@ -10,7 +10,7 @@
       font-family: Arial, sans-serif;
       padding: 20px;
     }
-    input {
+    input, textarea {
       background-color: #1e1e1e;
       color: #ffffff;
       border: 1px solid #444;
@@ -38,28 +38,41 @@
       background-color: #1f1f1f;
       border-radius: 4px;
     }
+    .section-title {
+      margin-top: 30px;
+      color: #bbbbbb;
+    }
+    #customJsonInput {
+      width: 300px;
+      height: 70px;
+      vertical-align: top;
+      margin-right: 5px;
+      resize: vertical;
+    }
   </style>
-</head> 
-
+</head>
 <body>
   <h2>Chat Client</h2>
-
   <!-- User Join -->
   <input id="userIdInput" placeholder="Enter your userId..." />
   <button onclick="connectUser()">Join Chat</button>
   <br><br>
-
   <!-- Thread Join -->
   <input id="threadIdInput" placeholder="Enter threadId..." />
   <button onclick="joinThread()">Join Thread</button>
   <br><br>
-
   <!-- Send Message -->
   <input id="senderIdInput" placeholder="Sender userId..." />
   <input id="receiverIdInput" placeholder="Receiver userId..." />
   <input id="messageInput" placeholder="Message..." />
   <button onclick="sendMessage()">Send</button>
-
+  <br><br>
+  <!-- Custom Event Sender -->
+  <span class="section-title">Custom Event Tester</span><br>
+  <input id="customEventInput" placeholder="Event name (e.g. chat_message)" style="width:190px" />
+  <textarea id="customJsonInput" placeholder='JSON payload here (e.g. {"foo": "bar"})'></textarea>
+  <button onclick="sendCustomEvent()">Send Custom Event</button>
+  <br><br>
   <!-- Messages -->
   <ul id="messages"></ul>
 
@@ -81,22 +94,22 @@
         socket.emit('user_join', { userId });
         connected = true;
       });
+      socket.on('user_status', (data) => { 
+        console.log('user_status data ', data);
+        const { userId, status } = data;
+        appendMessage(`User ${userId} status: ${status}`);
+      });
 
       socket.on('user_join', (data) => {
-        const li = document.createElement('li');
-        li.innerText = `User ${data.hello} has joined the chat.`;
-        document.getElementById('messages').appendChild(li); 
+        appendMessage(`User ${data.hello} has joined the chat.`);
       });
 
       socket.on('chat_message', (data) => {
-        const li = document.createElement('li'); 
-        console.info(data);
-        li.innerText = `${data.senderId} ➡️ : ${data.message}`;
-        document.getElementById('messages').appendChild(li);
+        appendMessage(`${data.senderId} ➡️ : ${data.message}`);
         socket.emit('message_ack', {
           ...data,
           messageStatus : 'read'
-        })
+        });
       });
 
       socket.on('disconnect', () => {
@@ -104,52 +117,46 @@
         connected = false;
       });
 
-     socket.on('message_status', (data) => {
-      console.info(data);
-      const { messageId, messageStatus } = data;
-  
-     const li = document.createElement('li');
-      li.innerText = `📬 Message ${messageId} marked as ${messageStatus}`;
-       document.getElementById('messages').appendChild(li);
+      socket.on('message_status', (data) => {
+        const { messageId, messageStatus } = data;
+        appendMessage(`📬 Message ${messageId} marked as ${messageStatus}`);
       });
-      
+       
       socket.on('notify_message_outside_thread', (data) => {
          const { threadId, fromUser, messagePreview, messageType, unreadCount, timestamp, messageId } = data;
-         const li = document.createElement('li');
-         li.innerText = `🔔 New message in thread ${threadId} from ${fromUser.name} (${fromUser.id}) → "${messagePreview}" [${messageType}] at ${new Date(timestamp).toLocaleTimeString()}. ${unreadCount} unread.`;
-         document.getElementById('messages').appendChild(li); 
-          socket.emit('message_ack', {
-          senderId : fromUser?.senderId,
-          messageStatus : 'delivered', 
-          messageId : messageId
+         appendMessage(`🔔 New message in thread ${threadId} from ${fromUser.name} (${fromUser.id}) → "${messagePreview}" [${messageType}] at ${new Date(timestamp).toLocaleTimeString()}. ${unreadCount} unread.`);
+         socket.emit('message_ack', {
+           senderId : fromUser?.senderId,
+           messageStatus : 'delivered', 
+           messageId : messageId
         })
-      })
-       
+      });
+        
       socket.on('self_message_notification', (data) => {
-        console.log('data self_message_notification => ', data);
-    const {
-      threadId,
-      fromUser,
-      messagePreview,
-      type,
-      unreadCount,
-      date,
-      messageId
-    } = data;
+        const {
+          threadId,
+          fromUser,
+          messagePreview,
+          type,
+          unreadCount,
+          date,
+          messageId
+        } = data;
+        appendMessage(`📨 Your message in thread ${threadId} was: "${messagePreview}" [${type}] at ${new Date(date).toLocaleTimeString()}. ${unreadCount} unread`);
+        socket.emit('message_ack', {
+          senderId: fromUser?.senderId,
+          messageStatus: 'delivered',
+          messageId
+        });
+      });
 
-    const li = document.createElement('li');
-    li.innerText = `📨 Your message in thread ${threadId} was: "${messagePreview}" [${type}] at ${new Date(date).toLocaleTimeString()}. ${unreadCount} unread`;
-    document.getElementById('messages').appendChild(li);
-
-    // Optional: Emit message acknowledgment
-    socket.emit('message_ack', {
-      senderId: fromUser?.senderId,
-      messageStatus: 'delivered',
-      messageId
-    });
-   });
       socket.on('error', (error) => {
         console.error('❌ Connection error:', error);
+      });
+
+      // Optionally: log all (for dev/debug)
+      window.debugListenAll && socket.onAny((event, ...args) => {
+        appendMessage(`(debug) Event: ${event} - ${JSON.stringify(args)}`);
       });
     }
 
@@ -158,47 +165,63 @@
         alert("⚠️ Not connected. Join chat first.");
         return;
       }
-
       const threadId = document.getElementById('threadIdInput').value.trim();
       const currentUserId = document.getElementById('userIdInput').value.trim();
-
       if (!threadId || !currentUserId) {
         alert("Please enter both threadId and your userId.");
         return;
       }
-
-      socket.emit('join_thread', {
-        threadId,
-        userId: currentUserId
-      });
-
-      const li = document.createElement('li');
-      li.innerText = `🔗 You (${currentUserId}) joined thread ${threadId}`;
-      document.getElementById('messages').appendChild(li);
+      socket.emit('join_thread', { threadId, userId: currentUserId });
+      appendMessage(`🔗 You (${currentUserId}) joined thread ${threadId}`);
     }
 
     function sendMessage() {
       const senderId = document.getElementById('senderIdInput').value.trim();
       const receiverId = document.getElementById('receiverIdInput').value.trim();
       const message = document.getElementById('messageInput').value.trim();
-
       if (!connected || !socket) {
         alert("⚠️ Not connected.");
         return;
       }
-
       if (!senderId || !receiverId || !message) {
         alert("❗ Please fill in sender, receiver, and message.");
         return;
       }
-
       socket.emit('chat_message', {
         currentUserId: senderId,
         otherUserId: receiverId,
         message: message
       });
-
       document.getElementById('messageInput').value = '';
+    }
+
+    // --- BELOW IS THE ADDED FUNCTIONALITY ---
+    function sendCustomEvent() {
+      if (!connected || !socket) {
+        alert("⚠️ Not connected. Join chat first.");
+        return;
+      }
+      const eventName = document.getElementById('customEventInput').value.trim();
+      const jsonValue = document.getElementById('customJsonInput').value.trim();
+      if (!eventName || !jsonValue) {
+        alert("Please provide event name and JSON payload.");
+        return;
+      }
+      let payload;
+      try {
+        payload = JSON.parse(jsonValue);
+      } catch (e) {
+        alert("❌ Invalid JSON: " + e.message);
+        return;
+      }
+      appendMessage(`🚀 Sending custom event <b>${eventName}</b> with data: ${jsonValue}`);
+      socket.emit(eventName, payload);
+    }
+
+    function appendMessage(msg) {
+      const li = document.createElement('li');
+      li.innerHTML = msg;
+      document.getElementById('messages').appendChild(li);
     }
   </script>
 </body>

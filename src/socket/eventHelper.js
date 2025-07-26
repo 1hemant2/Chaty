@@ -18,7 +18,7 @@ const {
   isUserExistInThread,
   getUserAllThreads,
 } = require('../services/thread.server');
-const { getUserById } = require('../services/user.service');
+const { getUserById, setUserStatus, getUserStatus } = require('../services/user.service');
 
 /**
  *
@@ -101,8 +101,11 @@ const handleUserJoin = async (socket, data) => {
 };
 
 /**
- * This function handles the logic for a user leaving the application.
-
+ * @param {*} socket
+ * @description : This function handles the logic when a user leaves the application.
+ * It removes the user from the Redis cache, notifies all participants about the user's offline status,
+ * and updates the user's last seen status.
+ * It also handles the case where user is present in thread and gone offline, removing them from the thread.
  */
 const handleUserLeave = async (socket) => {
   try {
@@ -117,7 +120,7 @@ const handleUserLeave = async (socket) => {
       removeuserProfile(userId);
       handleUserLeftThread(socket, { userId, threadId });
       socket.leave(`user:${userId}`);
-      // udate user status in mongoDB
+      setUserStatus(userId);
     }
   } catch (error) {
     logger.error('Error handling user leave:', error);
@@ -237,6 +240,31 @@ const handleMessageAckknowledge = async (socket, data) => {
   }
 };
 
+/**
+ * @params {*} socket
+ * @description : this function will emit the user status to the requestes user, but must be user thread created with requested user status.
+ * If user is not present in thread then it will return the error.
+ */
+const handleUserStatus = async (socket, io, data) => {
+  try {
+    const { userId } = data;
+    const { otherUserId } = data;
+    if (!userId) {
+      throw new Error('User ID is not provided');
+    }
+    // check if user and other user is present in any thread or not.
+    const isUserInThread = await isThreadExists(userId, otherUserId);
+    const userStatus = await getUserStatus(otherUserId);
+    if (userStatus && isUserInThread) {
+      io.to(`user:${userId}`).emit('user_status', { data: userStatus });
+    } else {
+      io.to(`user:${userId}`).emit('user_status', { message: 'User status not found' });
+    }
+  } catch (error) {
+    logger.error('Error fetching user status:', error);
+  }
+};
+
 module.exports = {
   handleUserJoin,
   handleSendMessage,
@@ -244,4 +272,5 @@ module.exports = {
   joinThread,
   handleMessageAckknowledge,
   handleUserLeftThread,
+  handleUserStatus,
 };
