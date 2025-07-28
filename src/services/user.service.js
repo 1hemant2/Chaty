@@ -1,6 +1,9 @@
 const httpStatus = require('http-status');
 const { User } = require('../models');
 const ApiError = require('../utils/ApiError');
+const logger = require('../config/logger');
+const UserStatus = require('../models/user.status.model');
+const { isUserOnline } = require('../redis/redisClient');
 
 /**
  * Create a user
@@ -79,6 +82,40 @@ const deleteUserById = async (userId) => {
   return user;
 };
 
+/**
+ * @param {*} userId
+ * @param {*} time
+ * @description: set the user lastSeen time.
+ */
+const setUserStatus = async (userId, time = new Date()) => {
+  try {
+    await UserStatus.updateOne({ userId }, { $set: { lastSeen: time } }, { upsert: true });
+  } catch (error) {
+    logger.error('error occured while setting user user status', error);
+  }
+};
+
+/**
+ * @param {*} userId
+ * @description : this function return the last time user seen status.
+ */
+
+const getUserStatus = async (userId) => {
+  try {
+    if (!userId) {
+      throw new ApiError(httpStatus.BAD_REQUEST, 'User ID is required');
+    }
+    // Get the user Status from redis cache if not found then fetch from database.
+    const userStatus = await isUserOnline(userId);
+    if (userStatus) {
+      return 'online';
+    }
+    return await UserStatus.findOne({ userId }).sort({ createdAt: -1 }).lean();
+  } catch (error) {
+    logger.error('error occured while fetching user status =>', userId);
+  }
+};
+
 module.exports = {
   createUser,
   queryUsers,
@@ -86,4 +123,6 @@ module.exports = {
   getUserByEmail,
   updateUserById,
   deleteUserById,
+  setUserStatus,
+  getUserStatus,
 };

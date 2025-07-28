@@ -1,20 +1,47 @@
-const logger = require('../config/logger');
-const { handleUserJoin } = require('./eventHelper');
+const {
+  handleUserJoin,
+  handleSendMessage,
+  handleUserLeave,
+  joinThread,
+  handleMessageAckknowledge,
+  handleUserLeftThread,
+  handleUserStatus,
+} = require('./eventHelper');
 
-const handleEvents = (socket, io) => {
+const handleEvents = ({ socket, io }) => {
   // Handle disconnection
-  socket.on('disconnect', () => {
-    logger.info(`Client disconnected: ${socket.id}`);
+  socket.on('disconnect', async () => {
+    await handleUserLeave(socket);
   });
 
-  // Handle custom events here
+  // This event is triggered when a user joins the application.
   socket.on('user_join', async (data) => {
     await handleUserJoin(socket, data);
   });
 
-  socket.on('chat_message', (data) => {
-    // Broadcast the chat message to all connected clients
-    io.emit('chat_message', data);
+  // This event is triggered when a user sends a message.
+  socket.on('chat_message', async (data) => {
+    await handleSendMessage(socket, data);
+  });
+
+  // This event join a thread
+  socket.on('join_thread', async (data) => {
+    await joinThread(socket, data);
+  });
+
+  // remove from thread
+  socket.on('user_left_thread', async (data) => {
+    await handleUserLeftThread(socket, data);
+  });
+
+  // acknowledge the message status.
+  socket.on('message_ack', async (data) => {
+    await handleMessageAckknowledge(socket, data);
+  });
+
+  // get the user status
+  socket.on('user_status', async (data) => {
+    await handleUserStatus(socket, io, data);
   });
 };
 
