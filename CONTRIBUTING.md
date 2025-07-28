@@ -1,32 +1,35 @@
 # Contributing
 
-First off, thank you so much for taking the time to contribute. All contributions are more than welcome!
+Thanks for checking out `chaty` 👋
 
-## How can I contribute?
+This project is being actively developed and maintained as a **personal engineering showcase** by [Hemant Kumar](https://github.com/1hemant2). It is not currently accepting external contributions or pull requests.
 
-If you have an awesome new feature that you want to implement or you found a bug that you would like to fix, here are some instructions to guide you through the process:
+That said — you're more than welcome to:
 
-- **Create an issue** to explain and discuss the details
-- **Fork the repo**
-- **Clone the repo** and set it up (check out the [manual installation](https://github.com/hagopj13/node-express-boilerplate#manual-installation) section in README.md)
-- **Implement** the necessary changes
-- **Create tests** to keep the code coverage high
-- **Send a pull request**
+- 📚 Fork the repo and learn from the architecture or patterns
+- 🚀 Remix or extend it for your own use case
+- 🤝 Reach out if you’re working on something similar and want to exchange ideas
 
-## Guidelines
+### Why no contributions right now?
 
-### Git commit messages
+This repo is part of a focused effort to sharpen my skills in:
 
-- Limit the subject line to 72 characters
-- Capitalize the first letter of the subject line
-- Use the present tense ("Add feature" instead of "Added feature")
-- Separate the subject from the body with a blank line
-- Reference issues and pull requests in the body
+- WebSocket architecture
+- Redis-based scaling
+- Real-time data modeling
+- Backend system design
 
-### Coding style guide
+Keeping it solo helps me maintain creative control and iterate faster during the learning process.
 
-We are using ESLint to ensure a consistent code style in the project, based on [Airbnb's JS style guide](https://github.com/airbnb/javascript/tree/master/packages/eslint-config-airbnb-base).
+### Forking? Consider this:
 
-Some other ESLint plugins are also being used, such as the [Prettier](https://github.com/prettier/eslint-plugin-prettier) and [Jest](https://github.com/jest-community/eslint-plugin-jest) plugins.
+If you fork or reuse this project:
 
-Please make sure that the code you are pushing conforms to the style guides mentioned above.
+- Please retain the original [MIT License](LICENSE), which includes credits to both the original author and this modified version
+- Credit [Hemant Kumar](https://github.com/1hemant2) for building the real-time Socket.IO-based architecture
+- Optionally credit [Hagop Jamkojian](https://github.com/hagopj13) for the original REST boilerplate this was built on
+- Mention your own modifications clearly in your README or LICENSE
+
+---
+
+Thanks again for stopping by — build cool stuff. 💥
